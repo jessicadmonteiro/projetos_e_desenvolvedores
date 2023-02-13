@@ -113,41 +113,54 @@ const retriveDeveloper = async (req: Request, res: Response): Promise<Response> 
 }
 
 const retriveProjectsDeveloper = async (req: Request, res: Response): Promise<Response> => {
-  const id: number = parseInt(req.params.id)
 
-  const queryString: string = `
-    SELECT 
-      de.*,
-      di.*,
-      pr."projectID",
-      pr."projectName",
-      pr."projectDescription",
-      pr."projectEstimatedTime",
-      pr."projectRepository",
-      pr."projectStartDate",
-      pr."projectEndDate",
-      pt."technologyId" 
-    FROM  
-      developers de
-    LEFT JOIN 
-      developer_infos di ON de."developerInfoId" = di."developerInfoId"
-    LEFT JOIN 
-      projects pr ON pr."developerId" = di."developerInfoId"
-    LEFT JOIN 
-      projects_technologies pt ON pt."projectId" = pr."projectID"
-    WHERE 
-      de."developerID" = $1;
-  `
+  try {
+    const id: number = parseInt(req.params.id)
 
-  const queryConfig: QueryConfig = {
-    text: queryString,
-    values: [id],
+    const queryString: string = `
+      SELECT 
+        d.*,
+        di."developerInfoDeveloperSince",
+        di."developerInfoPreferredOS",
+        p."projectID",
+        p."projectName",
+        p."projectDescription",
+        p."projectEstimatedTime",
+        p."projectRepository",
+        p."projectStartDate",
+        p."projectEndDate",
+        te.*
+      FROM 
+          projects p 
+      JOIN 
+          developers d  ON p."developerId" = d."developerID" 
+      FULL JOIN 
+          projects_technologies pt ON pt."projectId" = p."projectID"
+      FULL JOIN 
+          technologies te ON pt."technologyId" = te."technologyId"
+      FULL JOIN 
+          developer_infos di ON d."developerInfoId" = di."developerInfoId"
+      WHERE 
+          "developerId"  = $1;
+    `
+  
+    const queryConfig: QueryConfig = {
+      text: queryString,
+      values: [id],
+    }
+  
+    const queryResult = await client.query(queryConfig)
+  
+    return res.json(queryResult.rows)
+    
+  } catch (error: any) {
+    console.log(error.message)
+
+    return res.status(500).json({message: error.message})
+    
   }
-
-  const queryResult = await client.query(queryConfig)
-
-  return res.json(queryResult.rows)
-}
+ 
+} 
 
 const updateDeveloper = async (req: Request, res: Response): Promise<Response> => {
   try {

@@ -57,11 +57,16 @@ const createProject = async (req: Request, res: Response): Promise<Response> => 
 const readProject = async (req: Request, res: Response): Promise<Response> => {
 
     const queryString = `
-        SELECT
-            *
-        FROM
-            projects;
-
+        SELECT 
+            pr.*,
+            te."technologyId",
+            te."technologyName"
+        FROM 
+            projects_technologies pt
+        FULL JOIN 
+            projects pr ON pt."projectId" = pr."projectID"
+        LEFT JOIN 
+            technologies te ON pt."technologyId" = te."technologyId";
     `
      const queryResult: ProjectResult = await client.query(queryString)
 
@@ -73,12 +78,17 @@ const retriveProject = async (req: Request, res: Response): Promise<Response> =>
     const id: number =  parseInt(req.params.id)
 
     const queryString = `
-        SELECT
-            *
-        FROM
-            projects 
-        WHERE 
-            projects."projectID" = $1
+        SELECT 
+            pr.*,
+            te."technologyId",
+            te."technologyName"
+        FROM 
+            projects pr 
+        FULL JOIN 
+            projects_technologies pt ON pt."projectId" = pr."projectID"
+        FULL JOIN 
+            technologies te ON pt."technologyId" = te."technologyId"
+        WHERE pr."projectID"  = $1;
     `
     const queryConfig: QueryConfig = {
         text: queryString,
@@ -110,10 +120,9 @@ const updateProject = async (req: Request, res: Response): Promise<Response> => 
         `
             UPDATE
                 projects
-            SET 
-                $1
+            SET (%I) = ROW(%L)
             WHERE
-                "projectID" = $2
+                "projectID" = $1
             RETURNING *;
         `,
             projectKeys,
