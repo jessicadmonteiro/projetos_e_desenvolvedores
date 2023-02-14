@@ -103,18 +103,38 @@ const retriveProject = async (req: Request, res: Response): Promise<Response> =>
 
 const updateProject = async (req: Request, res: Response): Promise<Response> => {
     try {
-        const data = req.body
-      
-        const name = {projectName: data.name }
-        const description = { projectDescription: data.description }
-        const estimatedTime= { projectEstimatedTime: data.estimatedTime }
-        const repository = { projectRepository: data.repository }
-        const startDate = { projectStartDate: data.startDate }
-        
         const id: number    = parseInt(req.params.id)
-        const projectKeys   = Object.keys(name || description || estimatedTime || repository || startDate)
-        const projectValues = Object.values(name || description || estimatedTime || repository || startDate)
 
+        const queryStringProject: string = `
+            SELECT
+                *
+            FROM
+                projects
+            WHERE "projectID" = $1;
+
+        `
+        const queryConfigProject: QueryConfig = {
+            text: queryStringProject,
+            values: [id]
+        }
+
+        const queryResultProject = await client.query(queryConfigProject)
+
+        let data = req.body
+
+        data = {
+            projectName: data.name || queryResultProject.rows[0].projectName,
+            projectDescription: data.description || queryResultProject.rows[0].projectDescription,
+            projectEstimatedTime: data.estimatedTime || queryResultProject.rows[0].estimatedTime,
+            projectRepository: data.repository || queryResultProject.rows[0].projectRepository,
+            projectStartDate: data.startDate || queryResultProject.rows[0].projectStartDate,
+            projectEndDate: data.endDate || queryResultProject.rows[0].projectEndDate,
+            developerId: data.developerId || queryResultProject.rows[0].developerId
+        }
+      
+        
+        const projectKeys   = Object.keys(data)
+        const projectValues = Object.values(data)
 
         const queryString: string = format(
         `
@@ -136,12 +156,18 @@ const updateProject = async (req: Request, res: Response): Promise<Response> => 
 
         const queryResult: ProjectResult = await client.query(queryConfig)
 
-        console.log(queryResult)
-
         return res.status(200).json(queryResult.rows[0])
         
     } catch (error: any) {
         console.log(error.message)
+
+        if(error.message === `null value in column "projectEstimatedTime" of relation "projects" violates not-null constraint`){
+            return res.status(400).json({
+                message: "At least one of those keys must be send.",
+                keys: 
+                  " name, description, estimatedTime, repository, startDate, endDate, developerId."
+                })
+        }
         return res.status(500).json({ message: error })
     }
     
