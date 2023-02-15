@@ -1,36 +1,38 @@
 import { Request, Response } from "express"
-import {iTechnologyRequest} from "../interfaces/technologies.interfeces"
 import { client } from "../database"
 import { QueryConfig } from "pg"
 
-
 const createTechnology = async (req: Request, res: Response): Promise<Response> => {
   const id: number = parseInt(req.params.id)
+  const data = req.body
   const date: Date = new Date()
 
-  const data = req.body
-    
-  const necessaryData: iTechnologyRequest = {
-    technologyName: data.name,
+  const queryProject: string = `
+    SELECT 
+    pr.*,
+    te."technologyId",
+    te."technologyName"
+    FROM 
+      projects pr 
+    FULL JOIN 
+      projects_technologies pt ON pt."projectId" = pr."projectID"
+    FULL JOIN 
+      technologies te ON pt."technologyId" = te."technologyId"
+    WHERE pr."projectID"  = $1;
+  `
+
+  const queryConfigProject: QueryConfig = {
+    text:queryProject,
+    values: [id]
   }
 
-  const datasValues = [
-    "JavaScript", 
-    "Python", 
-    "React", 
-    "Express.js", 
-    "HTML", 
-    "CSS", 
-    "Django", 
-    "PostgreSQL", 
-    "MongoDB"
-  ]
+  const queryResultProject = await client.query(queryConfigProject)
 
-  const validate = datasValues.find((e) => e === necessaryData.technologyName)
-  if(validate === undefined){
-    return res.status(400).json({
-      message: "Technology not supported.",
-      options: `[${datasValues}]`
+  const nameExist = queryResultProject.rows.find((element) => element.technologyName === data.name)
+  
+  if(nameExist !== undefined){
+    return res.status(404).json({
+      message: "technology already exists in this project!"
     })
   }
 
@@ -38,42 +40,39 @@ const createTechnology = async (req: Request, res: Response): Promise<Response> 
     SELECT
       *
     FROM
-      technologies;
+      technologies
+    WHERE 
+      "technologyName" = $1;
   `
 
-  await client.query(queryString)
-
-  const queryStringTechnology = `
-    INSERT INTO
-      technologies("technologyName")
-    VALUES
-      ($1)
-    RETURNING *;
-  `
-  const queryConfigTechnology: QueryConfig = {
-    text: queryStringTechnology,
-    values: [necessaryData.technologyName]
+  let queryConfig: QueryConfig = {
+    text: queryString,
+    values:[data.name]
   }
-  const queryTechnology = await client.query(queryConfigTechnology)
 
+  const queryResult = await client.query(queryConfig)
 
+  if(queryResult.rowCount === 0){
+    return res.status(404).json({
+      message: "Technology not found!"
+    })
+  }
 
   queryString = `
     INSERT INTO
-      projects_technologies("addedIn","projectId", "technologyId" )
-    VALUES
-      ($1, $2, $3)
-    RETURNING *;
+      projects_technologies("addedIn","projectId", "technologyId")
+    VALUES($1, $2, $3);
   `
-  let queryConfig: QueryConfig = {
+
+  queryConfig = {
     text: queryString,
-    values: [date, id, queryTechnology.rows[0].technologyId]
+    values: [date, id, queryResult.rows[0].technologyId]
   }
 
-  const projectTechnology =  await client.query(queryConfig)
+  await client.query(queryConfig)
   
 
-  const selectQueryString = `
+    const selectQueryString = `
     SELECT 
     te."technologyId" ,
     te."technologyName",
@@ -96,51 +95,107 @@ const createTechnology = async (req: Request, res: Response): Promise<Response> 
     values: [id]
   }
 
-  const queryResult = await client.query(selectQueryConfig)
+  const queryResultSelect = await client.query(selectQueryConfig)
 
-  return res.status(201).json(queryResult.rows[0])
+  const index: number = queryResultSelect.rows.length -1
+
+  return res.status(201).json(queryResultSelect.rows[index])
 }
 
-const deleteProject = async ( req: Request, res: Response): Promise<Response> => {
-  const idProject: number = parseInt(req.params.id)
+const deleteTech = async ( req: Request, res: Response): Promise<Response> => {
   const nameTechnology: string = req.params.name
 
+  try {
+    const idProject: number = parseInt(req.params.id)
 
-  const selectqueryString: string = `
-    SELECT 
+    let queryStringTech: string = `
+    SELECT
       *
-    FROM 
-      projects_technologies pt
-    FULL JOIN 
-      technologies te ON pt."technologyId" = te."technologyId"
-    WHERE pt."projectId" = $1;
+    FROM
+      technologies
+    WHERE 
+      "technologyName" = $1;
   `
 
-  const queryConfigSelect: QueryConfig = {
-    text: selectqueryString,
+  let queryConfigTech: QueryConfig = {
+    text: queryStringTech,
+    values:[nameTechnology]
+  }
+
+  const queryResult = await client.query(queryConfigTech)
+
+  if(queryResult.rowCount === 0){
+    return res.status(404).json({
+      message: "Technology not supported",
+      options: [
+        "JavaScript",
+        "Python",
+        "React",
+        "Express.js",
+        "HTML",
+        "CSS",
+        "Django",
+        "PostgreSQL",
+        "MongoDB"
+      ]
+    })
+  }
+    
+    const queryProject: string = `
+      SELECT 
+        pr.*,
+        pt.*,
+        te."technologyId",
+        te."technologyName"
+      FROM 
+        projects pr 
+      FULL JOIN 
+        projects_technologies pt ON pt."projectId" = pr."projectID"
+      FULL JOIN 
+        technologies te ON pt."technologyId" = te."technologyId"
+      WHERE pr."projectID"  = $1;
+  `
+
+  const queryConfigProject: QueryConfig = {
+    text:queryProject,
     values: [idProject]
   }
 
-  const queryResultSelect = await client.query(queryConfigSelect)
+  const queryResultProject = await client.query(queryConfigProject)
+
+  const project = queryResultProject.rows.find((element) => element.technologyName === nameTechnology)
 
   const queryString: string = `
-    DELETE FROM
-      technologies
-    WHERE
-      "technologyId" = $1
-  `
-  const queryConfig: QueryConfig = {
-    text: queryString,
-    values: [queryResultSelect.rows[0].technologyId]
+      DELETE FROM
+        projects_technologies
+      WHERE
+        "id" = $1 
+    `
+    const queryConfig: QueryConfig = {
+      text: queryString,
+      values: [project.id]
+    }
+  
+    await client.query(queryConfig)
+
+    return res.status(204).send()
+    
+  } catch (error: any) {
+    console.log(error.message)
+
+    if(error.message === `Cannot read properties of undefined (reading 'id')`){
+      return res.status(404).json({
+        message: `Technology ${nameTechnology} not found on this Project.`
+      })
+    }
+    return res.status(500)
   }
 
-  await client.query(queryConfig)
-
-  return res.status(204).send()
+ 
 }
 
 
 export {
   createTechnology,
-  deleteProject
+  deleteTech
 }

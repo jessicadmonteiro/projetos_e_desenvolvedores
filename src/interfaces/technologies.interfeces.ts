@@ -22,5 +22,5 @@ export {
     iTechnologyRequest,
     iTechnology,
     iTechnologies,
-    TechnologiesResult
+    TechnologiesResult,
 }

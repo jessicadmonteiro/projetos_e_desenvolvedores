@@ -164,19 +164,32 @@ const retriveProjectsDeveloper = async (req: Request, res: Response): Promise<Re
 
 const updateDeveloper = async (req: Request, res: Response): Promise<Response> => {
   try {
-    const data = req.body
-
-    const necessaryName = {
-      developerName: data.name,
-    }
-
-    const necessaryEmail = {
-      developerEmail: data.email,
-    }
-
     const id: number = parseInt(req.params.id)
-    const developerKeys = Object.keys(necessaryName || necessaryEmail)
-    const developerValues = Object.values(necessaryName || necessaryEmail)
+
+    const queryStringDeveloper: string = `
+      SELECT
+        *
+      FROM
+        developers
+      WHERE "developerID" = $1;
+
+    `
+    const queryConfigDeveloper: QueryConfig = {
+      text: queryStringDeveloper,
+      values:[id]
+    }
+
+    const queryDeveloper = await client.query(queryConfigDeveloper)
+    const data = req.body
+    console.log(queryDeveloper)
+
+    const necessaryData = {
+      developerName: data.name || queryDeveloper.rows[0].developerName,
+      developerEmail: data.email || queryDeveloper.rows[0].developerEmail,
+    }
+
+    const developerKeys = Object.keys(necessaryData)
+    const developerValues = Object.values(necessaryData)
 
     const queryString: string = format(
       `

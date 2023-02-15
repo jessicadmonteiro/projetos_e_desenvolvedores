@@ -4,7 +4,7 @@ import {createDeveloper, deleteDeveloper, readDeveloper, retriveDeveloper, retri
 import {createDeveloperInfo, updateDeveloperInfo} from "./logics/Infos.logics"
 import { developerDatasUnique, ensureDeveloperExists, ensureProjectExists } from "./middlewares"
 import {createProject, deleteProject, readProject, retriveProject, updateProject} from "./logics/projects.logics"
-import {createTechnology} from "./logics/technologies.logics"
+import {createTechnology, deleteTech} from "./logics/technologies.logics"
 
 const app: Application = express()
 app.use(express.json())
@@ -26,7 +26,7 @@ app.patch("/projects/:id", ensureProjectExists, updateProject)
 app.delete("/projects/:id", ensureProjectExists, deleteProject)
 
 app.post("/projects/:id/technologies", ensureProjectExists, createTechnology)
-app.delete("/projects/:id/technologies/:name", ensureProjectExists, deleteProject)
+app.delete("/projects/:id/technologies/:name", ensureProjectExists, deleteTech)
 
 const PORT: number = 3000
 const runningMsg: string = `Server running on http://localhost:${PORT}`

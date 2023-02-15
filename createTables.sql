@@ -46,8 +46,12 @@ CREATE TABLE IF NOT EXISTS projects_technologies(
 	"projectId" INTEGER NOT NULL,
 	"technologyId" INTEGER NOT NULL,
 	FOREIGN KEY ("projectId") REFERENCES projects("projectID"),
-	FOREIGN KEY ("technologyId") REFERENCES technologies("technologyId")
+	FOREIGN KEY ("technologyId") REFERENCES technologies("technologyId") 
 );
+
+ALTER TABLE projects_technologies 
+ADD CONSTRAINT fk_technology
+FOREIGN KEY ("technologyId") REFERENCES technologies("technologyId") ON DELETE SET NULL;
 
 SELECT *
 FROM  projects_technologies;

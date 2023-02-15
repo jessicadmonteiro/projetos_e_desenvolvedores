@@ -109,18 +109,33 @@ const updateDeveloperInfo = async ( req: Request, res: Response): Promise<Respon
 
 try {
   const id: number  = parseInt(req.params.id)
-    const data = req.body;
 
-    const necessaryPreferredOS = {
-      developerInfoPreferredOS: data.preferredOS,
-    }
+  const queryDeveloperInfo: string = `
+    SELECT
+      *
+    FROM 
+      developers d
+    JOIN
+      developer_infos di ON d."developerID" = di."developerInfoId"
+    WHERE 
+      d."developerID" = $1;
+  `
 
-    const necessarySince = {
-      developerInfoDeveloperSince: data.developerSince
-    }
+  const queryConfigDeveloperInfo: QueryConfig = {
+    text: queryDeveloperInfo,
+    values: [id]
+  }
 
-  const developerInfoKeys = Object.keys(necessaryPreferredOS || necessarySince);
-  const developerInfoValues = Object.values(necessaryPreferredOS || necessarySince);
+  const queryResultDeveloperInfo = await client.query(queryConfigDeveloperInfo)
+
+  const data = req.body;
+  const necessaryData = {
+    developerInfoPreferredOS: data.preferredOS || queryResultDeveloperInfo.rows[0].developerInfoPreferredOS,
+    developerInfoDeveloperSince: data.developerSince || queryResultDeveloperInfo.rows[0].developerInfoDeveloperSince
+  }
+
+  const developerInfoKeys = Object.keys(necessaryData );
+  const developerInfoValues = Object.values(necessaryData );
 
     const queryStringDeveloper: string = `
       SELECT
